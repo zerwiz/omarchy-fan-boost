@@ -36,7 +36,8 @@ function parseStatus(raw) {
                     index: parseInt(parts[1], 10) || 0,
                     rpm: parseInt(parts[2], 10) || 0,
                     pwm: parseInt(parts[3], 10) || 0,
-                    enable: parseInt(parts[4], 10) || 0
+                    enable: parseInt(parts[4], 10) || 0,
+                    maxRpm: parseInt(parts[5], 10) || 0
                 })
             }
         }
@@ -54,10 +55,15 @@ function rpmText(fan) {
     return fan.rpm + " rpm"
 }
 
+function loadPercent(fan) {
+    if (!fan || !fan.maxRpm || !fan.rpm) return 0
+    return Math.round((fan.rpm / fan.maxRpm) * 100)
+}
+
 function fanDetail(fan) {
     if (!fan) return "—"
     var text = rpmText(fan)
-    if (fan.pwm > 0) text += " (" + pwmPercent(fan) + "%)"
+    if (fan.maxRpm > 0 && fan.rpm > 0) text += " (" + loadPercent(fan) + "%)"
     return text
 }
 

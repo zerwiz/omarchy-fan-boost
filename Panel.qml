@@ -172,8 +172,8 @@ Panel {
                                 value: Model.fanDetail(modelData)
                             }
                             Bar {
-                                visible: modelData.pwm > 0
-                                fraction: Model.pwmPercent(modelData) / 100
+                                visible: Model.loadPercent(modelData) > 0
+                                fraction: Model.loadPercent(modelData) / 100
                             }
                         }
                     }

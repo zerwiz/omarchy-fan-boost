@@ -56,7 +56,7 @@ has_asusctl() { command -v asusctl >/dev/null 2>&1; }
 has_platform_profile() { [ -r /sys/firmware/acpi/platform_profile ]; }
 
 print_fans() {
-  local d n i rpm pwm en
+  local d n i rpm pwm en maxrpm
   for d in /sys/class/hwmon/hwmon*; do
     [ -d "$d" ] || continue
     n=$(cat "$d/name" 2>/dev/null) || continue
@@ -66,7 +66,8 @@ print_fans() {
       rpm=$(cat "$d/fan${i}_input" 2>/dev/null) || rpm=-
       pwm=$(cat "$d/pwm$i" 2>/dev/null) || pwm=-
       en=$(cat "$d/pwm${i}_enable" 2>/dev/null) || en=-
-      printf 'FAN=%s|%s|%s|%s|%s\n' "$n" "$i" "$rpm" "$pwm" "$en"
+      maxrpm=$(cat "$d/fan${i}_max" 2>/dev/null) || maxrpm=-
+      printf 'FAN=%s|%s|%s|%s|%s|%s\n' "$n" "$i" "$rpm" "$pwm" "$en" "$maxrpm"
     done
   done
 }
