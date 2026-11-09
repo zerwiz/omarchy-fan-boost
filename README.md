@@ -54,8 +54,8 @@ The panel also shows CPU and GPU temperature: the CPU package sensor
 the GPU through `nvidia-smi`, or an `amdgpu` hwmon edge sensor where there is no
 NVIDIA card.
 
-The bar reads `FAN <rpm>` (the average of the fans), `FAN MAX` while boosted,
-and plain `FAN` while the door is not installed yet.
+The bar carries a wind glyph with the average fan speed (🌬 4502), and
+🌬 MAX while boosted.
 
 ## The command line
 
