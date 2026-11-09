@@ -214,7 +214,7 @@ cmd_status() {
 
 cmd_max() {
   local arg=${1:-hold} seconds=0 used="" previous
-  need_root max
+  need_root max "$@"
   prepare_state
   case $arg in
     hold|0|"") seconds=0 ;;
@@ -251,7 +251,7 @@ cmd_max() {
 
 cmd_auto() {
   local restored=""
-  need_root auto
+  need_root auto "$@"
   prepare_state
   stop_timer
   restore_hwmon && restored="$restored hwmon"
