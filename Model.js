@@ -48,6 +48,13 @@ function rpmText(fan) {
     return fan.rpm + " rpm"
 }
 
+function fanDetail(fan) {
+    if (!fan) return "—"
+    var text = rpmText(fan)
+    if (fan.pwm > 0) text += " (" + pwmPercent(fan) + "%)"
+    return text
+}
+
 function pwmPercent(fan) {
     if (!fan || !fan.pwm) return 0
     return Math.round((fan.pwm / 255) * 100)

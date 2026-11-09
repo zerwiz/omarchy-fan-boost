@@ -165,9 +165,12 @@ Panel {
 
                             InfoPair {
                                 label: Model.fanLabel(modelData)
-                                value: Model.rpmText(modelData) + " (" + Model.pwmPercent(modelData) + "%)"
+                                value: Model.fanDetail(modelData)
                             }
-                            Bar { fraction: Model.pwmPercent(modelData) / 100 }
+                            Bar {
+                                visible: modelData.pwm > 0
+                                fraction: Model.pwmPercent(modelData) / 100
+                            }
                         }
                     }
 

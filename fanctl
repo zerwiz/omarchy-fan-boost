@@ -60,8 +60,9 @@ print_fans() {
   for d in /sys/class/hwmon/hwmon*; do
     [ -d "$d" ] || continue
     n=$(cat "$d/name" 2>/dev/null) || continue
+    case $n in AC|BAT*|nvme|coretemp|iwlwifi*|ucsi_*) continue ;; esac
     for i in 1 2 3 4 5 6 7 8; do
-      [ -e "$d/pwm$i" ] || continue
+      [ -e "$d/fan${i}_input" ] || [ -e "$d/pwm$i" ] || continue
       rpm=$(cat "$d/fan${i}_input" 2>/dev/null) || rpm=-
       pwm=$(cat "$d/pwm$i" 2>/dev/null) || pwm=-
       en=$(cat "$d/pwm${i}_enable" 2>/dev/null) || en=-
