@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+# fanctl — the one named door for fan control on an Omarchy seat.
+# Installed to /usr/local/bin/fanctl by install.sh; the only command the
+# widget is allowed to run as root.
+set -uo pipefail
+
+STATE_DIR=/run/fanctl
+MODE_FILE=$STATE_DIR/mode
+UNTIL_FILE=$STATE_DIR/until
+SAVED_FILE=$STATE_DIR/saved
+TIMER_UNIT=fanctl-revert
+
+ALLOWED_HWMON="dell_smm asus asus_armoury asus-nb-wmi asus_nb_wmi thinkpad ideapad hp system76 acer acpi_fan"
+
+die() { printf 'fanctl: %s\n' "$*" >&2; exit "${2:-1}"; }
+warn() { printf 'fanctl: %s\n' "$*" >&2; }
+
+need_root() {
+  [ "$(id -u)" -eq 0 ] || die "must run as root — invoke it as: sudo fanctl $*" 77
+}
+
+prepare_state() {
+  mkdir -p "$STATE_DIR" 2>/dev/null || die "cannot create $STATE_DIR"
+  chmod 0755 "$STATE_DIR"
+}
+
+hwmon_allowed() {
+  local n=$1 a
+  for a in $ALLOWED_HWMON; do [ "$a" = "$n" ] && return 0; done
+  return 1
+}
+
+current_mode() {
+  local m
+  m=$(cat "$MODE_FILE" 2>/dev/null) || m=auto
+  [ "$m" = max ] || m=auto
+  printf '%s' "$m"
+}
+
+# --- discovery ---------------------------------------------------------------
+
+pwm_count() {
+  local d n i count=0
+  for d in /sys/class/hwmon/hwmon*; do
+    [ -d "$d" ] || continue
+    n=$(cat "$d/name" 2>/dev/null) || continue
+    hwmon_allowed "$n" || continue
+    for i in 1 2 3 4 5 6 7 8; do
+      [ -e "$d/pwm$i" ] && count=$((count + 1))
+    done
+  done
+  printf '%s' "$count"
+}
+
+has_asusctl() { command -v asusctl >/dev/null 2>&1; }
+has_platform_profile() { [ -w /sys/firmware/acpi/platform_profile ]; }
+
+print_fans() {
+  local d n i rpm pwm en
+  for d in /sys/class/hwmon/hwmon*; do
+    [ -d "$d" ] || continue
+    n=$(cat "$d/name" 2>/dev/null) || continue
+    for i in 1 2 3 4 5 6 7 8; do
+      [ -e "$d/pwm$i" ] || continue
+      rpm=$(cat "$d/fan${i}_input" 2>/dev/null) || rpm=-
+      pwm=$(cat "$d/pwm$i" 2>/dev/null) || pwm=-
+      en=$(cat "$d/pwm${i}_enable" 2>/dev/null) || en=-
+      printf 'FAN=%s|%s|%s|%s|%s\n' "$n" "$i" "$rpm" "$pwm" "$en"
+    done
+  done
+}
+
+# --- the three mechanisms ----------------------------------------------------
+
+save_hwmon_state() {
+  local d n i
+  : > "$SAVED_FILE.hwmon"
+  for d in /sys/class/hwmon/hwmon*; do
+    [ -d "$d" ] || continue
+    n=$(cat "$d/name" 2>/dev/null) || continue
+    hwmon_allowed "$n" || continue
+    for i in 1 2 3 4 5 6 7 8; do
+      [ -e "$d/pwm$i" ] || continue
+      printf '%s|%s|%s|%s\n' "$d" "$i" \
+        "$(cat "$d/pwm${i}_enable" 2>/dev/null || echo -)" \
+        "$(cat "$d/pwm$i" 2>/dev/null || echo -)" >> "$SAVED_FILE.hwmon"
+    done
+  done
+}
+
+boost_hwmon() {
+  local d i en pwm wrote=1
+  [ "$(pwm_count)" -gt 0 ] || return 1
+  while IFS='|' read -r d i en pwm; do
+    if ! echo 1 > "$d/pwm${i}_enable" 2>/dev/null; then
+      warn "could not put ${d##*/} pwm$i into manual mode"
+      continue
+    fi
+    if ! echo 255 > "$d/pwm$i" 2>/dev/null; then
+      warn "could not write ${d##*/} pwm$i"
+      continue
+    fi
+    wrote=0
+  done < "$SAVED_FILE.hwmon"
+  return $wrote
+}
+
+restore_hwmon() {
+  local d i en pwm
+  [ -s "$SAVED_FILE.hwmon" ] || return 1
+  while IFS='|' read -r d i en pwm; do
+    [ -e "$d/pwm${i}_enable" ] || continue
+    if [ "$en" != "-" ] && [ -n "$en" ]; then
+      echo "$en" > "$d/pwm${i}_enable" 2>/dev/null || warn "could not restore ${d##*/} pwm$i enable=$en"
+    else
+      echo 2 > "$d/pwm${i}_enable" 2>/dev/null || true
+    fi
+    if [ "$en" = 1 ] && [ "$pwm" != "-" ] && [ -n "$pwm" ]; then
+      echo "$pwm" > "$d/pwm$i" 2>/dev/null || true
+    fi
+  done < "$SAVED_FILE.hwmon"
+  return 0
+}
+
+boost_asus() {
+  has_asusctl || return 1
+  local fan
+  for fan in cpu gpu mid; do
+    asusctl fan-curve --mod-profile performance --enable-fan-curve true --fan "$fan" \
+      --data "30c:100%,40c:100%,50c:100%,60c:100%,70c:100%,80c:100%,90c:100%,100c:100%" \
+      >/dev/null 2>&1 || true
+  done
+  asusctl profile set Performance >/dev/null 2>&1 || true
+  asusctl fan-curve --mod-profile performance --enable-fan-curves true >/dev/null 2>&1 || true
+  return 0
+}
+
+restore_asus() {
+  has_asusctl || return 1
+  local previous
+  previous=$(cat "$SAVED_FILE.asus" 2>/dev/null | head -1)
+  asusctl fan-curve --mod-profile performance --enable-fan-curves false >/dev/null 2>&1 || true
+  if [ -n "$previous" ]; then
+    asusctl profile set "$previous" >/dev/null 2>&1 || true
+  else
+    asusctl profile set Balanced >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
+save_platform_profile() {
+  has_platform_profile || return 1
+  head -1 /sys/firmware/acpi/platform_profile 2>/dev/null > "$SAVED_FILE.pp"
+}
+
+boost_platform_profile() {
+  has_platform_profile || return 1
+  [ -s "$SAVED_FILE.pp" ] || save_platform_profile
+  echo performance > /sys/firmware/acpi/platform_profile 2>/dev/null || return 1
+  return 0
+}
+
+restore_platform_profile() {
+  local previous
+  has_platform_profile || return 1
+  previous=$(head -1 "$SAVED_FILE.pp" 2>/dev/null)
+  [ -n "$previous" ] || return 1
+  echo "$previous" > /sys/firmware/acpi/platform_profile 2>/dev/null || true
+  return 0
+}
+
+stop_timer() {
+  systemctl stop "$TIMER_UNIT.timer" >/dev/null 2>&1 || true
+}
+
+start_timer() {
+  local seconds=$1
+  stop_timer
+  systemd-run --unit="$TIMER_UNIT" --on-active="${seconds}s" \
+    --timer-property=AccuracySec=1s \
+    --description="Return the fans to automatic" \
+    /usr/local/bin/fanctl auto >/dev/null 2>&1 || {
+    warn "could not arm the ${seconds}s revert timer"
+    return 1
+  }
+  return 0
+}
+
+write_mode() {
+  prepare_state
+  printf '%s\n' "$1" > "$MODE_FILE"
+  printf '%s\n' "${2:-0}" > "$UNTIL_FILE"
+  chmod 0644 "$MODE_FILE" "$UNTIL_FILE" 2>/dev/null || true
+}
+
+# --- commands ----------------------------------------------------------------
+
+cmd_status() {
+  printf 'MODE=%s\n' "$(current_mode)"
+  if [ "$(current_mode)" = max ]; then
+    printf 'UNTIL=%s\n' "$(cat "$UNTIL_FILE" 2>/dev/null || echo 0)"
+  else
+    printf 'UNTIL=0\n'
+  fi
+  print_fans
+  if has_asusctl; then
+    printf 'PROFILE=%s\n' "$(asusctl profile get 2>/dev/null | sed -n 's/^Active profile: *//p' | head -1)"
+  fi
+  if has_platform_profile; then
+    printf 'PLATFORM=%s\n' "$(head -1 /sys/firmware/acpi/platform_profile 2>/dev/null)"
+  fi
+  return 0
+}
+
+cmd_max() {
+  local arg=${1:-hold} seconds=0 used="" previous
+  need_root max
+  prepare_state
+  case $arg in
+    hold|0|"") seconds=0 ;;
+    *[!0-9]*) die "unknown argument '$arg' — expected a number of seconds or 'hold'" ;;
+    *) seconds=$arg ;;
+  esac
+
+  if [ "$(current_mode)" != max ]; then
+    save_hwmon_state
+    save_platform_profile
+    if has_asusctl && [ ! -s "$SAVED_FILE.asus" ]; then
+      asusctl profile get 2>/dev/null | sed -n 's/^Active profile: *//p' | head -1 > "$SAVED_FILE.asus"
+    fi
+  fi
+
+  boost_hwmon && used="$used hwmon"
+  if boost_asus; then used="$used asus"; fi
+  if [ -z "$used" ] && boost_platform_profile; then used="platform-profile"; fi
+
+  if [ -z "$used" ]; then
+    die "no fan door on this machine — no writable pwm channel, no asusctl, no platform profile" 78
+  fi
+
+  if [ "$seconds" -gt 0 ]; then
+    write_mode max "$(( $(date +%s) + seconds ))"
+    start_timer "$seconds" || true
+  else
+    write_mode max 0
+    stop_timer
+  fi
+  printf 'fans to max via%s\n' "$used"
+  return 0
+}
+
+cmd_auto() {
+  local restored=""
+  need_root auto
+  prepare_state
+  stop_timer
+  restore_hwmon && restored="$restored hwmon"
+  restore_asus && restored="$restored asus"
+  restore_platform_profile && restored="$restored platform-profile"
+  write_mode auto 0
+  if [ -z "$restored" ]; then
+    printf 'nothing was boosted\n'
+  else
+    printf 'fans returned to automatic via%s\n' "$restored"
+  fi
+  return 0
+}
+
+usage() {
+  cat <<'EOF'
+fanctl — fan control door
+
+  fanctl status          what the fans are doing now (no root needed)
+  fanctl max [SECONDS]   fans to maximum; with SECONDS, reverts automatically
+  fanctl max hold        fans to maximum until told otherwise
+  fanctl auto            return the fans to the firmware's automatic control
+EOF
+}
+
+case ${1:-status} in
+  status) cmd_status ;;
+  max) shift; cmd_max "$@" ;;
+  auto) cmd_auto ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 2 ;;
+esac

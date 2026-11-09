@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.zerwiz.fan-boost",
+  "name": "Fan Boost",
+  "version": "1.0.0",
+  "author": "zerwiz",
+  "license": "MIT",
+  "description": "Push the machine's fans to maximum, on a timer or held, and return them to automatic",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Fan Boost",
+    "description": "Fans to maximum on a timer or held, then back to automatic",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 3,
+      "boostMinutes": 5
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 1,
+        "max": 30,
+        "step": 1,
+        "defaultValue": 3
+      },
+      {
+        "key": "boostMinutes",
+        "type": "integer",
+        "label": "Timed boost length (minutes)",
+        "min": 1,
+        "max": 60,
+        "step": 1,
+        "defaultValue": 5
+      }
+    ]
+  }
+}
