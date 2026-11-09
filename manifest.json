@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.zerwiz.fan-boost",
   "name": "Fan Boost",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "zerwiz",
   "license": "MIT",
-  "description": "Push the machine's fans to maximum, on a timer or held, and return them to automatic",
+  "description": "Push the machine's fans to maximum, on a timer or held, see CPU and GPU temperature, and return the fans to automatic",
   "kinds": [
     "bar-widget"
   ],

@@ -1,7 +1,8 @@
 # Fan Boost
 
 An Omarchy bar widget that pushes the machine's fans to maximum — on a timer or
-held — and returns them to the firmware's automatic control.
+held — shows CPU and GPU temperature, and returns the fans to the firmware's
+automatic control.
 
 It serves two very different machines through one door:
 
@@ -47,6 +48,11 @@ omarchy restart shell
 - **Hold max** keeps them flat out until you press **Auto**.
 - **Auto** returns the fans to the firmware, replaying the state it saved
   before the boost.
+
+The panel also shows CPU and GPU temperature: the CPU package sensor
+(`coretemp` on Intel, `k10temp` on AMD, falling back to the platform sensor), and
+the GPU through `nvidia-smi`, or an `amdgpu` hwmon edge sensor where there is no
+NVIDIA card.
 
 The bar reads `FAN <rpm>` (the average of the fans), `FAN MAX` while boosted,
 and plain `FAN` while the door is not installed yet.

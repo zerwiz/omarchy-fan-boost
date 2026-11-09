@@ -71,6 +71,48 @@ print_fans() {
   done
 }
 
+print_temps() {
+  local d n cpu_source="" cpu_value="" gpu_source="" gpu_value=""
+  for n in coretemp k10temp; do
+    for d in /sys/class/hwmon/hwmon*; do
+      [ "$(cat "$d/name" 2>/dev/null)" = "$n" ] || continue
+      [ -e "$d/temp1_input" ] || continue
+      cpu_source=$n
+      cpu_value=$(cat "$d/temp1_input" 2>/dev/null)
+      break 2
+    done
+  done
+  if [ -z "$cpu_source" ]; then
+    for n in dell_smm asus acpitz; do
+      for d in /sys/class/hwmon/hwmon*; do
+        [ "$(cat "$d/name" 2>/dev/null)" = "$n" ] || continue
+        [ -e "$d/temp1_input" ] || continue
+        cpu_source=$n
+        cpu_value=$(cat "$d/temp1_input" 2>/dev/null)
+        break 2
+      done
+    done
+  fi
+  [ -n "$cpu_source" ] && printf 'TEMP=cpu|%s|%s\n' "$cpu_source" "$cpu_value"
+
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    gpu_value=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -dc '0-9')
+    if [ -n "$gpu_value" ]; then
+      gpu_source=nvidia
+      gpu_value=$((gpu_value * 1000))
+    fi
+  fi
+  if [ -z "$gpu_source" ]; then
+    for d in /sys/class/drm/card*/device/hwmon/hwmon*; do
+      [ -e "$d/temp1_input" ] || continue
+      gpu_source=amdgpu
+      gpu_value=$(cat "$d/temp1_input" 2>/dev/null)
+      break
+    done
+  fi
+  [ -n "$gpu_source" ] && printf 'TEMP=gpu|%s|%s\n' "$gpu_source" "$gpu_value"
+}
+
 # --- the three mechanisms ----------------------------------------------------
 
 save_hwmon_state() {
@@ -217,6 +259,7 @@ cmd_status() {
     printf 'UNTIL=0\n'
   fi
   print_fans
+  print_temps
   if has_asusctl; then
     printf 'PROFILE=%s\n' "$(asusctl profile get 2>/dev/null | sed -n 's/^Active profile: *//p' | head -1)"
   fi

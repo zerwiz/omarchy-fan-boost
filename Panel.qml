@@ -10,10 +10,11 @@ Panel {
     moduleName: "io.github.zerwiz.fan-boost"
     ipcTarget: "io.github.zerwiz.fan-boost"
     manageIpc: false
-    property var status: ({ mode: "auto", until: 0, fans: [], profile: "", platform: "" })
+    property var status: ({ mode: "auto", until: 0, fans: [], temps: {}, profile: "", platform: "" })
     property string lastError: ""
     property double nowEpoch: Date.now() / 1000
     readonly property var fans: status.fans || []
+    readonly property var temps: status.temps || {}
     readonly property string mode: status.mode || "auto"
     readonly property bool boosted: mode === "max"
     readonly property int refreshIntervalSec: Math.max(1, parseInt(setting("refreshIntervalSec", 3), 10) || 3)
@@ -110,6 +111,7 @@ Panel {
             var line = "Fans: " + Model.modeText(root.mode, root.status.until, root.nowEpoch)
             var rpm = Model.averageRpm(root.fans)
             if (rpm > 0) line += " · " + rpm + " rpm"
+            line += " · CPU " + Model.tempText(root.temps, "cpu") + " · GPU " + Model.tempText(root.temps, "gpu")
             if (root.lastError !== "") line += " · " + root.lastError
             return line
         }
@@ -230,6 +232,33 @@ Panel {
                             bordered: true
                             active: !root.boosted
                             onClicked: root.release()
+                        }
+                    }
+
+                    PanelSeparator {
+                        foreground: root.bar.foreground
+                    }
+
+                    PanelSectionHeader {
+                        text: "TEMPERATURE"
+                        foreground: root.bar.foreground
+                        fontFamily: root.bar.fontFamily
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: Style.space(20)
+
+                        Column {
+                            width: (parent.width - parent.spacing) / 2
+                            spacing: Style.spacing.labelGap
+                            InfoPair { label: "CPU"; value: Model.tempText(root.temps, "cpu") }
+                        }
+
+                        Column {
+                            width: (parent.width - parent.spacing) / 2
+                            spacing: Style.spacing.labelGap
+                            InfoPair { label: "GPU"; value: Model.tempText(root.temps, "gpu") }
                         }
                     }
 
