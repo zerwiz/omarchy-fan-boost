@@ -72,7 +72,7 @@ function averageRpm(fans) {
 function modeText(mode, until, nowEpoch) {
     if (mode !== 'max') return 'Automatic'
     if (!until || until <= 0) return 'Maximum, held'
-    var left = Math.max(0, until - nowEpoch)
+    var left = Math.max(0, Math.floor(until - nowEpoch))
     var minutes = Math.floor(left / 60)
     var seconds = left % 60
     return 'Maximum · ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds + ' left'

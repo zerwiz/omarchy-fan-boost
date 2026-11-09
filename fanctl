@@ -53,7 +53,7 @@ pwm_count() {
 }
 
 has_asusctl() { command -v asusctl >/dev/null 2>&1; }
-has_platform_profile() { [ -w /sys/firmware/acpi/platform_profile ]; }
+has_platform_profile() { [ -r /sys/firmware/acpi/platform_profile ]; }
 
 print_fans() {
   local d n i rpm pwm en
