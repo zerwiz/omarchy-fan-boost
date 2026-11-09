@@ -209,10 +209,11 @@ save_platform_profile() {
   head -1 /sys/firmware/acpi/platform_profile 2>/dev/null > "$SAVED_FILE.pp"
 }
 
-boost_platform_profile() {
+boost_profile() {
+  local want=$1
   has_platform_profile || return 1
   [ -s "$SAVED_FILE.pp" ] || save_platform_profile
-  echo performance > /sys/firmware/acpi/platform_profile 2>/dev/null || return 1
+  printf '%s\n' "$want" > /sys/firmware/acpi/platform_profile 2>/dev/null || return 1
   return 0
 }
 
@@ -269,9 +270,13 @@ cmd_status() {
   return 0
 }
 
-cmd_max() {
-  local arg=${1:-hold} seconds=0 used="" previous
-  need_root max "$@"
+cmd_boost() {
+  local mode=${1:-performance} arg=${2:-hold} seconds=0 used="" verb
+  case $mode in
+    performance|cool|balanced|quiet) ;;
+    *) die "unknown mode '$mode' — performance, cool, balanced or quiet" ;;
+  esac
+  need_root boost "$mode" "$arg"
   prepare_state
   case $arg in
     hold|0|"") seconds=0 ;;
@@ -288,8 +293,10 @@ cmd_max() {
   fi
 
   boost_hwmon && used="$used hwmon"
-  if boost_asus; then used="$used asus"; fi
-  boost_platform_profile && used="$used platform-profile"
+  case $mode in
+    performance) boost_asus && used="$used asus" ;;
+  esac
+  boost_profile "$mode" && used="$used profile:$mode"
 
   if [ -z "$used" ]; then
     die "no fan door on this machine — no writable pwm channel, no asusctl, no platform profile" 78
@@ -302,7 +309,7 @@ cmd_max() {
     write_mode max 0
     stop_timer
   fi
-  printf 'fans to max via%s\n' "$used"
+  printf 'fans to %s via%s\n' "$mode" "$used"
   return 0
 }
 
@@ -328,15 +335,21 @@ usage() {
 fanctl — fan control door
 
   fanctl status          what the fans are doing now (no root needed)
-  fanctl max [SECONDS]   fans to maximum; with SECONDS, reverts automatically
-  fanctl max hold        fans to maximum until told otherwise
+  fanctl max [SECONDS]   fans to maximum, power profile to performance
+  fanctl cool [SECONDS]  fans to maximum, power profile held back (cool)
+  fanctl boost MODE [S]  MODE is performance, cool, balanced or quiet
+  fanctl max hold        applied until told otherwise
   fanctl auto            return the fans to the firmware's automatic control
+
+  With a number of seconds the boost reverts by itself (a transient timer).
 EOF
 }
 
 case ${1:-status} in
   status) cmd_status ;;
-  max) shift; cmd_max "$@" ;;
+  max) shift; cmd_boost performance "${1:-hold}" ;;
+  cool) shift; cmd_boost cool "${1:-hold}" ;;
+  boost) shift; cmd_boost "${1:-performance}" "${2:-hold}" ;;
   auto) cmd_auto ;;
   -h|--help|help) usage ;;
   *) usage; exit 2 ;;

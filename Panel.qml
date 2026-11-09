@@ -36,6 +36,7 @@ Panel {
     }
 
     function boostTimed() { act(["max", String(boostMinutes * 60)]) }
+    function coolTimed() { act(["cool", String(boostMinutes * 60)]) }
     function boostHeld() { act(["max", "hold"]) }
     function release() { act(["auto"]) }
 
@@ -56,6 +57,7 @@ Panel {
         function hide() { root.close() }
         function toggle() { root.toggle() }
         function boost() { root.boostTimed() }
+        function cool() { root.coolTimed() }
         function auto() { root.release() }
     }
 
@@ -154,7 +156,7 @@ Panel {
 
                     InfoPair {
                         label: "Mode"
-                        value: Model.modeText(root.mode, root.status.until, root.nowEpoch)
+                        value: Model.modeText(root.mode, root.status.until, root.nowEpoch, root.status.platform || "")
                     }
 
                     Repeater {
@@ -184,29 +186,44 @@ Panel {
                             : (root.status.platform !== "" ? "platform · " + root.status.platform : "no fan door found")
                     }
 
-                    Row {
+                    Grid {
                         width: parent.width
+                        columns: 2
                         spacing: Style.space(6)
-                        readonly property real cellWidth: (width - spacing * 2) / 3
 
                         Button {
-                            width: parent.cellWidth
-                            iconText: "󰈐"
+                            width: (parent.width - parent.spacing) / 2
+                            iconText: "\uf03a6"
                             iconSize: Style.font.title
-                            text: root.boostMinutes + " min"
+                            text: "Cool " + root.boostMinutes + " min"
                             fontSize: Style.font.bodySmall
                             foreground: root.bar.foreground
                             fontFamily: root.bar.fontFamily
                             horizontalPadding: Style.spacing.controlPaddingX
                             verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
                             bordered: true
-                            active: root.boosted && root.status.until > 0
+                            active: root.boosted && root.status.platform === "cool"
+                            onClicked: root.coolTimed()
+                        }
+
+                        Button {
+                            width: (parent.width - parent.spacing) / 2
+                            iconText: "\uf04c5"
+                            iconSize: Style.font.title
+                            text: "Max " + root.boostMinutes + " min"
+                            fontSize: Style.font.bodySmall
+                            foreground: root.bar.foreground
+                            fontFamily: root.bar.fontFamily
+                            horizontalPadding: Style.spacing.controlPaddingX
+                            verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
+                            bordered: true
+                            active: root.boosted && root.status.platform === "performance"
                             onClicked: root.boostTimed()
                         }
 
                         Button {
-                            width: parent.cellWidth
-                            iconText: "󰓅"
+                            width: (parent.width - parent.spacing) / 2
+                            iconText: "\uf0210"
                             iconSize: Style.font.title
                             text: "Hold max"
                             fontSize: Style.font.bodySmall
@@ -220,8 +237,8 @@ Panel {
                         }
 
                         Button {
-                            width: parent.cellWidth
-                            iconText: "󰚥"
+                            width: (parent.width - parent.spacing) / 2
+                            iconText: "\uf06a5"
                             iconSize: Style.font.title
                             text: "Auto"
                             fontSize: Style.font.bodySmall
@@ -235,37 +252,10 @@ Panel {
                         }
                     }
 
-                    PanelSeparator {
-                        foreground: root.bar.foreground
-                    }
-
-                    PanelSectionHeader {
-                        text: "TEMPERATURE"
-                        foreground: root.bar.foreground
-                        fontFamily: root.bar.fontFamily
-                    }
-
-                    Row {
-                        width: parent.width
-                        spacing: Style.space(20)
-
-                        Column {
-                            width: (parent.width - parent.spacing) / 2
-                            spacing: Style.spacing.labelGap
-                            InfoPair { label: "CPU"; value: Model.tempText(root.temps, "cpu") }
-                        }
-
-                        Column {
-                            width: (parent.width - parent.spacing) / 2
-                            spacing: Style.spacing.labelGap
-                            InfoPair { label: "GPU"; value: Model.tempText(root.temps, "gpu") }
-                        }
-                    }
-
                     InfoLabelRow {
                         text: root.lastError !== ""
                             ? root.lastError
-                            : "A timed boost returns the fans to the firmware when it ends"
+                            : "This firmware ties the fans and the power profile to one setting: Max raises both, Cool drives the fans with power held back"
                         hint: root.status.platform !== "" ? "Platform profile: " + root.status.platform : ""
                     }
                 }

@@ -81,13 +81,14 @@ function averageRpm(fans) {
     return count > 0 ? Math.round(sum / count) : 0
 }
 
-function modeText(mode, until, nowEpoch) {
-    if (mode !== 'max') return 'Automatic'
-    if (!until || until <= 0) return 'Maximum, held'
+function modeText(mode, until, nowEpoch, profile) {
+    if (mode !== 'max') return profile !== '' ? 'Automatic · ' + profile : 'Automatic'
+    var tail = profile !== '' ? ' · ' + profile : ''
+    if (!until || until <= 0) return 'Boosted, held' + tail
     var left = Math.max(0, Math.floor(until - nowEpoch))
     var minutes = Math.floor(left / 60)
     var seconds = left % 60
-    return 'Maximum · ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds + ' left'
+    return 'Boosted' + tail + ' · ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds + ' left'
 }
 
 function barText(mode, fans) {

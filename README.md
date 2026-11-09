@@ -42,9 +42,14 @@ omarchy restart shell
 ## Usage
 
 - **Left-click** the bar icon to open the panel.
-- **5 min** runs the fans flat out for the configured time, then reverts by
-  itself (a transient `systemd` timer does the reverting, so it survives the
-  shell closing).
+- **Cool 5 min** and **Max 5 min** run flat out for the configured time, then
+  revert by themselves (a transient `systemd` timer does the reverting, so it
+  survives the shell closing).
+- **Cool** drives the fans with the power limit held back; **Max** raises the
+  performance profile as well. On this house's Dell they are the same firmware
+  knob seen from two sides, measured: `Ultra Performance` on the BIOS attribute
+  flips the ACPI profile to `performance`, `Cool` to `cool`, and at 67 °C the
+  `cool` setting spun the fans to 4 214 rpm while `performance` sat at 3 170.
 - **Hold max** keeps them flat out until you press **Auto**.
 - **Auto** returns the fans to the firmware, replaying the state it saved
   before the boost.
@@ -62,8 +67,9 @@ The bar carries a wind glyph with the average fan speed (🌬 4502), and
 `fanctl` is the same door, usable by hand — handy when the shell is not up:
 
 ```sh
-fanctl status        # mode, per-fan rpm/pwm and the active mechanism
-sudo fanctl max 300  # boost for five minutes
+fanctl status        # mode, per-fan rpm/pwm, temperatures, active mechanism
+sudo fanctl max 300  # fans to max, profile to performance, five minutes
+sudo fanctl cool 300 # fans to max, power profile held back, five minutes
 sudo fanctl max hold # boost until released
 sudo fanctl auto     # back to automatic
 ```
