@@ -8,10 +8,14 @@ It serves two very different machines through one door:
 | Mechanism | Where | What it writes |
 | --- | --- | --- |
 | `hwmon` pwm | Dell (`dell_smm`), ASUS, ThinkPad, others | `pwmN_enable=1`, `pwmN=255` |
+| `platform_profile` | anything with ACPI platform profiles (pulled as well, not only as a fallback) | `performance`, restored on release |
 | `asusctl` | ASUS ROG laptops without pwm channels | maxed fan curves + the Performance profile |
-| `platform_profile` | anything else with ACPI platform profiles | `performance`, restored on release |
 
-The plugin probes at run time; nothing is hard-coded to one machine.
+The plugin probes at run time; nothing is hard-coded to one machine. It pulls
+**every** lever a machine offers rather than stopping at the first, because a
+lever can be present and inert — measured on this house's Dell Precision 7560,
+where `dell_smm` accepts `pwm1=255` and the fans do not move, while the ACPI
+profile took them from 3 690 rpm to 4 810 rpm in ten seconds.
 
 ## Install
 
@@ -60,9 +64,13 @@ sudo fanctl auto     # back to automatic
 
 ## Limits worth knowing
 
-- **Dell SMM writes can freeze some Precision models.** Ours is untested; the
-  first boost should be done with a hand on the power button. The helper arms
-  the revert timer before it returns, so a machine left in `MAX` still frees
+- **A pwm channel can be present and powerless.** On the Precision 7560 here,
+  `dell_smm` accepts a write and clamps it (255 in, 128 back), and the fans do
+  not follow; the ACPI platform profile is what actually moves them. `fanctl`
+  reads every written value back and prints a warning when the driver ignores
+  it.
+- **Dell SMM writes can freeze some Precision models.** The helper arms the
+  revert timer before it returns, so a machine left in `MAX` still frees
   itself.
 - A held boost is loud and drains the battery; the timer exists so that
   forgetting is not a trap.

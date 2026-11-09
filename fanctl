@@ -89,8 +89,8 @@ save_hwmon_state() {
 }
 
 boost_hwmon() {
-  local d i en pwm wrote=1
-  [ "$(pwm_count)" -gt 0 ] || return 1
+  local d i en pwm wrote=1 readback
+  [ -s "$SAVED_FILE.hwmon" ] || return 1
   while IFS='|' read -r d i en pwm; do
     if ! echo 1 > "$d/pwm${i}_enable" 2>/dev/null; then
       warn "could not put ${d##*/} pwm$i into manual mode"
@@ -101,13 +101,26 @@ boost_hwmon() {
       continue
     fi
     wrote=0
+    readback=$(cat "$d/pwm$i" 2>/dev/null) || readback=-
+    [ "$readback" = 255 ] || warn "${d##*/} pwm$i reads back $readback — this driver ignores the write"
   done < "$SAVED_FILE.hwmon"
   return $wrote
 }
 
 restore_hwmon() {
-  local d i en pwm
-  [ -s "$SAVED_FILE.hwmon" ] || return 1
+  local d i en pwm n wrote=1
+  if [ ! -s "$SAVED_FILE.hwmon" ]; then
+    for d in /sys/class/hwmon/hwmon*; do
+      [ -d "$d" ] || continue
+      n=$(cat "$d/name" 2>/dev/null) || continue
+      hwmon_allowed "$n" || continue
+      for i in 1 2 3 4 5 6 7 8; do
+        [ -e "$d/pwm$i" ] || continue
+        echo 2 > "$d/pwm${i}_enable" 2>/dev/null && wrote=0
+      done
+    done
+    return $wrote
+  fi
   while IFS='|' read -r d i en pwm; do
     [ -e "$d/pwm${i}_enable" ] || continue
     if [ "$en" != "-" ] && [ -n "$en" ]; then
@@ -232,7 +245,7 @@ cmd_max() {
 
   boost_hwmon && used="$used hwmon"
   if boost_asus; then used="$used asus"; fi
-  if [ -z "$used" ] && boost_platform_profile; then used="platform-profile"; fi
+  boost_platform_profile && used="$used platform-profile"
 
   if [ -z "$used" ]; then
     die "no fan door on this machine — no writable pwm channel, no asusctl, no platform profile" 78
