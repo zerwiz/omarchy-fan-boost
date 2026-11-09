@@ -72,8 +72,8 @@ function modeText(mode, until, nowEpoch) {
 }
 
 function barText(mode, fans) {
-    if (mode === 'max') return "🌬 MAX"
+    if (mode === 'max') return "FAN MAX"
     var rpm = averageRpm(fans)
-    if (rpm > 0) return "🌬 " + rpm
-    return "🌬"
+    if (rpm > 0) return "FAN " + rpm
+    return "FAN"
 }

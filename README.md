@@ -44,7 +44,8 @@ omarchy restart shell
 - **Auto** returns the fans to the firmware, replaying the state it saved
   before the boost.
 
-The bar shows the average speed in rpm, or `MAX` while boosted.
+The bar reads `FAN <rpm>` (the average of the fans), `FAN MAX` while boosted,
+and plain `FAN` while the door is not installed yet.
 
 ## The command line
 
