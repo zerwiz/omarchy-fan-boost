@@ -7,6 +7,7 @@ function parseStatus(raw) {
     var profile = ""
     var platform = ""
     var temps = {}
+    var watts = -1
     var lines = String(raw).split('\n')
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim()
@@ -23,6 +24,8 @@ function parseStatus(raw) {
             profile = value
         } else if (key === 'PLATFORM') {
             platform = value
+        } else if (key === 'WATTS') {
+            watts = parseInt(value, 10)
         } else if (key === 'TEMP') {
             var t = value.split('|')
             if (t.length >= 3) {
@@ -42,7 +45,7 @@ function parseStatus(raw) {
             }
         }
     }
-    return { mode: mode, until: until, fans: fans, temps: temps, profile: profile, platform: platform }
+    return { mode: mode, until: until, fans: fans, temps: temps, watts: watts, profile: profile, platform: platform }
 }
 
 function fanLabel(fan) {
@@ -70,6 +73,11 @@ function fanDetail(fan) {
 function pwmPercent(fan) {
     if (!fan || !fan.pwm) return 0
     return Math.round((fan.pwm / 255) * 100)
+}
+
+function wattsText(watts) {
+    if (!(watts >= 0)) return "—"
+    return watts + " W"
 }
 
 function tempText(temps, kind) {

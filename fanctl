@@ -114,6 +114,20 @@ print_temps() {
   [ -n "$gpu_source" ] && printf 'TEMP=gpu|%s|%s\n' "$gpu_source" "$gpu_value"
 }
 
+print_rapl() {
+  local r a b
+  for r in /sys/class/powercap/intel-rapl:0/energy_uj /sys/class/powercap/amd-rapl:0/energy_uj; do
+    [ -r "$r" ] || continue
+    a=$(cat "$r" 2>/dev/null) || continue
+    sleep 0.4
+    b=$(cat "$r" 2>/dev/null) || continue
+    [ "$b" -gt "$a" ] || continue
+    printf 'WATTS=%s\n' "$(( (b - a) / 400000 ))"
+    return 0
+  done
+  return 0
+}
+
 # --- the three mechanisms ----------------------------------------------------
 
 save_hwmon_state() {
@@ -262,6 +276,7 @@ cmd_status() {
   fi
   print_fans
   print_temps
+  print_rapl
   if has_asusctl; then
     printf 'PROFILE=%s\n' "$(asusctl profile get 2>/dev/null | sed -n 's/^Active profile: *//p' | head -1)"
   fi

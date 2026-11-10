@@ -10,7 +10,7 @@ Panel {
     moduleName: "io.github.zerwiz.fan-boost"
     ipcTarget: "io.github.zerwiz.fan-boost"
     manageIpc: false
-    property var status: ({ mode: "auto", until: 0, fans: [], temps: {}, profile: "", platform: "" })
+    property var status: ({ mode: "auto", until: 0, fans: [], temps: {}, watts: -1, profile: "", platform: "" })
     property string lastError: ""
     property double nowEpoch: Date.now() / 1000
     readonly property var fans: status.fans || []
