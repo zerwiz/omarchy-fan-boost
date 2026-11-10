@@ -37,7 +37,7 @@ Panel {
 
     function boostTimed() { act(["max", String(boostMinutes * 60)]) }
     function coolTimed() { act(["cool", String(boostMinutes * 60)]) }
-    function boostHeld() { act(["max", "hold"]) }
+    function coolHeld() { act(["cool", "hold"]) }
     function release() { act(["auto"]) }
 
     function deliveryFailure(code, err) {
@@ -56,8 +56,9 @@ Panel {
         function show() { root.open() }
         function hide() { root.close() }
         function toggle() { root.toggle() }
-        function boost() { root.boostTimed() }
+        function boost() { root.coolTimed() }
         function cool() { root.coolTimed() }
+        function max() { root.boostTimed() }
         function auto() { root.release() }
     }
 
@@ -225,7 +226,7 @@ Panel {
                             width: (parent.width - parent.spacing) / 2
                             iconText: "\uf0210"
                             iconSize: Style.font.title
-                            text: "Hold max"
+                            text: "Hold cool"
                             fontSize: Style.font.bodySmall
                             foreground: root.bar.foreground
                             fontFamily: root.bar.fontFamily
@@ -233,7 +234,7 @@ Panel {
                             verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
                             bordered: true
                             active: root.boosted && root.status.until === 0
-                            onClicked: root.boostHeld()
+                            onClicked: root.coolHeld()
                         }
 
                         Button {
@@ -249,6 +250,45 @@ Panel {
                             bordered: true
                             active: !root.boosted
                             onClicked: root.release()
+                        }
+                    }
+
+                    PanelSeparator {
+                        foreground: root.bar.foreground
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Style.space(8)
+
+                        PanelSectionHeader {
+                            text: "TEMPERATURE"
+                            foreground: root.bar.foreground
+                            fontFamily: root.bar.fontFamily
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: Style.space(20)
+
+                            Column {
+                                width: (parent.width - parent.spacing * 2) / 3
+                                spacing: Style.spacing.labelGap
+                                InfoPair { label: "CPU"; value: Model.tempText(root.temps, "cpu") }
+                            }
+
+                            Column {
+                                width: (parent.width - parent.spacing * 2) / 3
+                                spacing: Style.spacing.labelGap
+                                InfoPair { label: "GPU"; value: Model.tempText(root.temps, "gpu") }
+                            }
+
+                            Column {
+                                width: (parent.width - parent.spacing * 2) / 3
+                                spacing: Style.spacing.labelGap
+                                visible: root.status.watts >= 0
+                                InfoPair { label: "Power"; value: Model.wattsText(root.status.watts) }
+                            }
                         }
                     }
 
