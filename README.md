@@ -30,7 +30,11 @@ sudo ./install.sh
 ```
 
 `install.sh` installs `fanctl`, writes `/etc/sudoers.d/20-fanctl` validated by
-`visudo -c`, and prints the probe commands.
+`visudo -c`, and prints the probe commands. It also writes
+`/etc/tmpfiles.d/50-rapl-read.conf`, which makes the package energy counter
+readable by an ordinary user so the panel can show live power; pass
+`--no-rapl` to skip that, since it is a deliberate loosening of a kernel
+side-channel restriction.
 
 Then enable the widget:
 
@@ -42,6 +46,8 @@ omarchy restart shell
 ## Usage
 
 - **Left-click** the bar icon to open the panel.
+- The panel shows CPU and GPU temperature and, where the power counter is
+  readable, live package power.
 - **Cool 5 min** and **Max 5 min** run flat out for the configured time, then
   revert by themselves (a transient `systemd` timer does the reverting, so it
   survives the shell closing).
@@ -97,7 +103,7 @@ sudo fanctl auto     # back to automatic
 
 ```sh
 omarchy plugin remove io.github.zerwiz.fan-boost
-sudo rm -f /usr/local/bin/fanctl /etc/sudoers.d/20-fanctl
+sudo rm -f /usr/local/bin/fanctl /etc/sudoers.d/20-fanctl /etc/tmpfiles.d/50-rapl-read.conf
 ```
 
 ## Contributors
